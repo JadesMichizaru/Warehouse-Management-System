@@ -9,14 +9,15 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    public function register(Request $request) {
+    public function register(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|password|min:8'
+            'password' => 'required|string|min:8',
         ]);
 
-        if($validator->fails()) {
+        if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
@@ -26,7 +27,7 @@ class AuthController extends Controller
             'password' => bcrypt($request->password),
         ]);
 
-        $tokens = $request->createToken('auth-token')->plainTextToken;
+        $tokens = $users->createToken('auth-token')->plainTextToken;
 
         return response()->json([
             'message' => 'User Successfully Registered!',
@@ -35,28 +36,33 @@ class AuthController extends Controller
         ]);
     }
 
-
-    public function login(Request $request) {
+    public function login(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required|password|min:8'
+            'password' => 'required|string|min:8',
         ]);
 
-        if($validator->fails()) {
+        if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        $user = User::where('email', $request->email)->first();
 
-        // Get credentials from request
-         $credentials = [
-             'email' => $request->email,
-             'password' => $request->password,
-         ];
+        $credentials = $request->only('email', 'password');
 
-         $user = Auth::user();
+        if (!Auth::attempt($credentials)) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Incorrect Email or Password',
+                ],
+                401,
+            );
+        }
 
-        $tokens = $request->createToken('auth-token')->plainTextToken;
+        $user = Auth::user();
+
+        $tokens = $request->user()->createToken('auth-token')->plainTextToken;
 
         return response()->json([
             'message' => 'User Successfully Login',
