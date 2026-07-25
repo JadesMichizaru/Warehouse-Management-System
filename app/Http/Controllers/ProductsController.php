@@ -13,10 +13,29 @@ class ProductsController extends Controller
         return response()->json(Products::all());
     }
 
-    public function show(string $id) {
-        $products = Products::findOrFail($id);
+    public function show(string $sku)
+    {
+        $products = Products::where('sku', $sku)->first();
 
-        return response()->json($products, 200);
+        if (!$products || $products->is_hidden || !$products->is_active) {
+            return response()->json([
+                'data' => 'Product not found or Product is out of stock',
+            ]);
+        }
+
+        return response()->json(
+            [
+                'data' => [
+                    'name' => $products->name,
+                    'sku' => $products->sku,
+                    'origin' => $products->origin,
+                    'brand' => $products->brand,
+                    'gross_weight' => $products->gross_weight,
+                    'weight_unit' => $products->weight_unit,
+                ],
+            ],
+            200,
+        );
     }
 
     public function store(Request $request)
@@ -24,26 +43,94 @@ class ProductsController extends Controller
         $validator = Validator::make($request->all(), [
             'sku' => 'required|string|unique:products,sku',
             'name' => 'required|string',
+            'origin' => 'required|string',
             'category' => 'required|string',
-            'min_stock' => 'required|integer|min:0',
+            'brand' => 'required|string',
+            'gross_weight' => 'required|integer',
+            'weight_unit' => 'required|string',
             'stock' => 'required|integer|min:0',
         ]);
 
-        if($validator->fails()) {
+        if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
         $product = Products::create([
-           'sku' => $request->sku,
-           'name' => $request->name,
-           'category' => $request->category,
-           'min_stock' => $request->min_stock,
-           'stock' => $request->stock,
+            'sku' => $request->sku,
+            'name' => $request->name,
+            'origin' => $request->origin,
+            'category' => $request->category,
+            'brand' => $request->brand,
+            'gross_weight' => $request->gross_weight,
+            'weight_unit' => $request->weight_unit,
+            'stock' => $request->stock,
+            'is_active' => false,
         ]);
 
+        return response()->json(
+            [
+                'messages' => 'Suppliers berhasil dibuat',
+                'data' => $product,
+            ],
+            201,
+        );
+    }
+
+    public function show5()
+    {
+        $product = Products::limit(5)->get();
+
+        return response($product);
+    }
+
+    public function update(Request $request, string $id)
+    {
+        $products = Products::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'sku' => 'required|string|unique:products,sku',
+            'name' => 'sometimes|string',
+            'origin' => 'sometimes|string',
+            'category' => 'sometimes|string',
+            'brand' => 'sometimes|string',
+            'gross_weight' => 'sometimes|integer',
+            'weight_unit' => 'sometimes|string',
+            'stock' => 'sometimes|integer|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors());
+        }
+
+        $dateToUpdate = array_filter(
+            $request->only([
+                'sku',
+                'name',
+                'origin',
+                'category',
+                'brand',
+                'gross_weight',
+                'weight_unit',
+                'stock',
+            ]),
+        );
+
+        $products->update($dateToUpdate);
+
         return response()->json([
-            'messages' => 'Suppliers berhasil dibuat',
-            'data' => $product
-        ], 201);
+            'messages' => 'Customers successfully update',
+            'data' => $products,
+        ]);
+    }
+
+    public function destroy(string $id)
+    {
+        $product = Products::findOrFail($id);
+
+        $product->delete();
+
+        return response()->json([
+            'messages' => 'Customer successfully destroy',
+        ]);
     }
 }
