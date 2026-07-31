@@ -38,6 +38,20 @@ class ProductsController extends Controller
         );
     }
 
+    //
+    public function deactive(string $id) {
+        $products = Products::findOrFail($id);
+
+        if(!$products->is_active) {
+            return response()->json([
+                'messages' => 'Product is deactived or Product is Out of Stock'
+            ]);
+        }
+
+        $products->is_active = false;
+        $products->save();
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
